@@ -5,39 +5,30 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2021/01/10 17:32:29 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/17 18:42:50 by clauren          ###   ########.fr       */
+/*   Created: 2021/01/17 18:32:09 by clauren           #+#    #+#             */
+/*   Updated: 2021/01/18 00:07:53 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "philo_one.h"
+#include "philo_two.h"
 
-int			print_s(t_philo *philo, char *msg, int d, int num)
+int			print_s(t_philo *philo, char *msg, int d)
 {
 	long time;
 
-	pthread_mutex_lock(&philo->table->print);
+	sem_wait(philo->table->print);
 	if (philo->table->end)
-	{
-		pthread_mutex_unlock(&philo->table->print);
 		return (0);
-	}
 	time = get_time() - philo->table->start;
 	ft_putnbr(time);
 	ft_putstr(" \033[0;36m#");
 	ft_putnbr(philo->idx);
 	ft_putstr("\033[0m ");
 	ft_putstr(msg);
-	if (num != -1)
-	{
-		ft_putstr("\033[0;34m #");
-		ft_putnbr(num);
-		ft_putstr("\033[0m");
-	}
 	write(1, "\n", 1);
 	if (d)
 		philo->table->end = 1;
-	pthread_mutex_unlock(&philo->table->print);
+	sem_post(philo->table->print);
 	return (0);
 }
 
@@ -61,12 +52,16 @@ int			init_table(t_table *table, int argc, char **argv)
 	table->t_eat = data[3];
 	table->t_sleep = data[4];
 	table->n_eat = (i == 6) ? data[5] : -1;
-	if (!(table->forks = malloc(sizeof(pthread_mutex_t) * table->num)))
-		return (1);
-	i = -1;
-	while (++i < table->num)
-		pthread_mutex_init(&table->forks[i], NULL);
-	pthread_mutex_init(&table->print, NULL);
+
+	return (0);
+}
+
+int			destroy(t_table *table)
+{
+	sem_close(table->print);
+	sem_close(table->forks);
+	sem_unlink("Forks");
+	sem_unlink("Print");
 	return (0);
 }
 
@@ -82,25 +77,20 @@ t_philo		*init_philos(t_table *table)
 	{
 		philos[i].idx = i + 1;
 		philos[i].n_eat = 0;
-		philos[i].l_fork = i;
-		philos[i].r_fork = (i == table->num - 1) ? 0 : i + 1;
 		philos[i].start = get_time();
 		philos[i].last = philos[i].start;
 		philos[i].table = table;
 		philos[i].is_hungry = 1;
 	}
+	destroy(table);
+	if ((table->forks =
+			sem_open("Forks", O_CREAT, 0600, table->num)) == SEM_FAILED ||
+			(table->print = sem_open("Print", O_CREAT, 0600, 1)) == SEM_FAILED)
+	{
+		printf("Semaphore error\n");
+		return (NULL);
+	}
 	return (philos);
-}
-
-int			destroy(t_table *table)
-{
-	int i;
-
-	i = -1;
-	while (++i < table->num)
-		pthread_mutex_destroy(&table->forks[i]);
-	pthread_mutex_destroy(&table->print);
-	return (0);
 }
 
 void		sleeping(int msec)
@@ -137,7 +127,7 @@ void		*death(void *args)
 			philo->is_hungry = 0;
 		time = get_time() - philo->last;
 		if (time > philo->table->t_die && !philo->table->end)
-			print_s(philo, "\033[0;31mdied\033[0m", 1, -1);
+			print_s(philo, "\033[0;31mdied\033[0m", 1);
 	}
 	return (NULL);
 }
@@ -149,19 +139,20 @@ void		*live(void *args)
 	philo = (t_philo *)args;
 	while (!philo->table->end)
 	{
-		pthread_mutex_lock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "has taken a fork", 0, philo->l_fork);
-		pthread_mutex_lock(&philo->table->forks[philo->r_fork]);
-		print_s(philo, "has taken a fork", 0, philo->r_fork);
+		sem_wait(philo->table->forks);
+		print_s(philo, "has taken a fork", 0);
+		sem_wait(philo->table->forks);
+		print_s(philo, "has taken a fork", 0);
 		philo->last = get_time();
-		print_s(philo, "is eating", 0, -1);
+		print_s(philo, "is eating", 0);
 		sleeping(philo->table->t_eat);
 		philo->n_eat++;
-		pthread_mutex_unlock(&philo->table->forks[philo->r_fork]);
-		pthread_mutex_unlock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "is sleeping", 0, -1);
+		sem_post(philo->table->forks);
+		sem_post(philo->table->forks);
+		print_s(philo, "is sleeping", 0);
 		sleeping(philo->table->t_sleep);
-		print_s(philo, "is thinking", 0, -1);
+		print_s(philo, "is thinking", 0);
+
 	}
 	return (NULL);
 }

@@ -6,11 +6,11 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/10 17:32:25 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/17 17:21:31 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/18 00:12:01 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "philo_one.h"
+#include "philo_two.h"
 
 long	get_time(void)
 {
