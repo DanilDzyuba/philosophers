@@ -5,39 +5,27 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2021/01/10 17:32:29 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/17 18:42:50 by clauren          ###   ########.fr       */
+/*   Created: 2021/01/19 14:00:38 by clauren           #+#    #+#             */
+/*   Updated: 2021/01/19 18:50:01 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "philo_one.h"
+#include "philo_three.h"
 
-int			print_s(t_philo *philo, char *msg, int d, int num)
+int			print_s(t_philo *philo, char *msg, int d)
 {
 	long time;
 
-	pthread_mutex_lock(&philo->table->print);
-	if (philo->table->end)
-	{
-		pthread_mutex_unlock(&philo->table->print);
-		return (0);
-	}
+	sem_wait(philo->table->print);
 	time = get_time() - philo->table->start;
 	ft_putnbr(time);
-	ft_putstr(" \033[0;36m#");
+	write(1, " #", 2);
 	ft_putnbr(philo->idx);
-	ft_putstr("\033[0m ");
+	write(1, " ", 1);
 	ft_putstr(msg);
-	if (num != -1)
-	{
-		ft_putstr("\033[0;34m #");
-		ft_putnbr(num);
-		ft_putstr("\033[0m");
-	}
 	write(1, "\n", 1);
-	if (d)
-		philo->table->end = 1;
-	pthread_mutex_unlock(&philo->table->print);
+	if (!d)
+		sem_post(philo->table->print);
 	return (0);
 }
 
@@ -61,12 +49,23 @@ int			init_table(t_table *table, int argc, char **argv)
 	table->t_eat = data[3];
 	table->t_sleep = data[4];
 	table->n_eat = (i == 6) ? data[5] : -1;
-	if (!(table->forks = malloc(sizeof(pthread_mutex_t) * table->num)))
-		return (1);
+	return (0);
+}
+
+int			destroy(t_table *table, int kill_all)
+{
+	int i;
+
 	i = -1;
-	while (++i < table->num)
-		pthread_mutex_init(&table->forks[i], NULL);
-	pthread_mutex_init(&table->print, NULL);
+	if (kill_all)
+		while (++i < table->num)
+			kill(table->pids[i], SIGKILL);
+	sem_close(table->print);
+	sem_close(table->forks);
+	sem_close(table->dead);
+	sem_unlink("Dead");
+	sem_unlink("Forks");
+	sem_unlink("Print");
 	return (0);
 }
 
@@ -78,29 +77,27 @@ t_philo		*init_philos(t_table *table)
 	i = -1;
 	if (!(philos = malloc(sizeof(t_philo) * table->num)))
 		return (NULL);
+	if (!(table->pids = malloc(sizeof(pid_t) * table->num)))
+		return (NULL);
 	while (++i < table->num)
 	{
 		philos[i].idx = i + 1;
 		philos[i].n_eat = 0;
-		philos[i].l_fork = i;
-		philos[i].r_fork = (i == table->num - 1) ? 0 : i + 1;
 		philos[i].start = get_time();
 		philos[i].last = philos[i].start;
 		philos[i].table = table;
 		philos[i].is_hungry = 1;
 	}
+	destroy(table, 0);
+	if ((table->forks =
+				 sem_open("Forks", O_CREAT, 0600, table->num)) == SEM_FAILED ||
+		(table->print = sem_open("Print", O_CREAT, 0600, 1)) == SEM_FAILED ||
+		(table->dead = sem_open("Dead", O_CREAT, 0600, 1)) == SEM_FAILED)
+	{
+		printf("Semaphore error\n");
+		return (NULL);
+	}
 	return (philos);
-}
-
-int			destroy(t_table *table)
-{
-	int i;
-
-	i = -1;
-	while (++i < table->num)
-		pthread_mutex_destroy(&table->forks[i]);
-	pthread_mutex_destroy(&table->print);
-	return (0);
 }
 
 void		sleeping(int msec)
@@ -108,7 +105,7 @@ void		sleeping(int msec)
 	long start;
 
 	start = get_time();
-	while (get_time() - start < msec)
+	while ((get_time() - start) < msec)
 		usleep(100);
 }
 
@@ -137,7 +134,11 @@ void		*death(void *args)
 			philo->is_hungry = 0;
 		time = get_time() - philo->last;
 		if (time > philo->table->t_die && !philo->table->end)
-			print_s(philo, "\033[0;31mdied\033[0m", 1, -1);
+		{
+			sem_wait(philo->table->dead);
+			print_s(philo, "\033[0;31mdied\033[0m", 1);
+			exit(22);
+		}
 	}
 	return (NULL);
 }
@@ -149,47 +150,65 @@ void		*live(void *args)
 	philo = (t_philo *)args;
 	while (!philo->table->end)
 	{
-		pthread_mutex_lock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "has taken a fork", 0, philo->l_fork);
-		pthread_mutex_lock(&philo->table->forks[philo->r_fork]);
-		print_s(philo, "has taken a fork", 0, philo->r_fork);
+		sem_wait(philo->table->forks);
+		print_s(philo, "has taken a fork", 0);
+		sem_wait(philo->table->forks);
+		print_s(philo, "has taken a fork", 0);
 		philo->last = get_time();
-		print_s(philo, "is eating", 0, -1);
+		print_s(philo, "is eating", 0);
 		sleeping(philo->table->t_eat);
+		sem_post(philo->table->forks);
+		sem_post(philo->table->forks);
 		philo->n_eat++;
-		pthread_mutex_unlock(&philo->table->forks[philo->r_fork]);
-		pthread_mutex_unlock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "is sleeping", 0, -1);
+		print_s(philo, "is sleeping", 0);
 		sleeping(philo->table->t_sleep);
-		print_s(philo, "is thinking", 0, -1);
+		print_s(philo, "is thinking", 0);
 	}
-	return (NULL);
 }
 
 void		dinner(int num, t_philo *philos)
 {
 	int			i;
-	pthread_t	worker[num];
+	int			status;
+	pid_t		child;
 	pthread_t	checker[num];
+	pid_t		p;
 
 	i = -1;
 	philos[0].table->start = get_time();
 	while (++i < num)
 	{
-		pthread_create(&worker[i], NULL, live, &philos[i]);
-		pthread_create(&checker[i], NULL, death, &philos[i]);
-		usleep(100);
+		child = fork();
+		if (child < 0)
+			exit(printf("Fork Error"));
+		if (child == 0)
+		{
+			pthread_create(&checker[i], NULL, death, &philos[i]);
+			live(&philos[i]);
+			exit(11);
+		}
+		philos[0].table->pids[i] = child;
+		usleep(200);
 	}
-	i = -1;
-	while (!philos[0].table->end)
-		if (!all_hungry(philos))
-			philos[0].table->end = 1;
-	while (++i < num)
+	while (1)
 	{
-		pthread_join(worker[i], NULL);
-		pthread_join(checker[i], NULL);
+		p = waitpid(-1, &status, 0);
+		if (WEXITSTATUS(status) != 11)
+		{
+			destroy(philos[0].table, 1);
+			break;
+		}
 	}
+//	i = -1;
+//	while (!philos[0].table->end)
+//		if (!all_hungry(philos))
+//			philos[0].table->end = 1;
+//	while (++i < num)
+//	{
+//		pthread_join(checker[i], NULL);
+//	}
 }
+
 
 int			main(int argc, char **argv)
 {
@@ -203,5 +222,5 @@ int			main(int argc, char **argv)
 	printf("num: %d | die: %d | eat: %d | sleep: %d | n: %d\n", table.num, table.t_die, table.t_eat, table.t_sleep, table.n_eat);
 	dinner(table.num, philos);
 //	while (1);
-	return (destroy(&table));
+	return (destroy(&table, 1));
 }
