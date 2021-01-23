@@ -49,35 +49,3 @@ int		ft_atoi(const char *str)
 	}
 	return (*str) ? -1 : (result * sign);
 }
-
-int		ft_strlen(char *s)
-{
-	int len;
-
-	len = 0;
-	while (s && *s++)
-		len++;
-	return (len);
-}
-
-int		ft_putstr(char *s)
-{
-	write(1, s, ft_strlen(s));
-	return (1);
-}
-
-int		ft_putnbr(long n)
-{
-	char c;
-
-	if (n < 0)
-	{
-		write(1, "-", 1);
-		n = n * -1;
-	}
-	if (n > 9)
-		ft_putnbr(n / 10);
-	c = (char)(n % 10) + '0';
-	write(1, &c, 1);
-	return (1);
-}

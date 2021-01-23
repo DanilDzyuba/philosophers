@@ -36,7 +36,6 @@ typedef struct	s_table
 typedef struct	s_philo
 {
 	int			idx;
-	int			is_hungry;
 	int			n_eat;
 	long		start;
 	long		last;

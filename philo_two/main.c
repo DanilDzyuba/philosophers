@@ -6,7 +6,7 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/17 18:32:09 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/18 00:07:53 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/23 17:30:20 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,14 +18,12 @@ int			print_s(t_philo *philo, char *msg, int d)
 
 	sem_wait(philo->table->print);
 	if (philo->table->end)
+	{
+		sem_post(philo->table->print);
 		return (0);
+	}
 	time = get_time() - philo->table->start;
-	ft_putnbr(time);
-	ft_putstr(" \033[0;36m#");
-	ft_putnbr(philo->idx);
-	ft_putstr("\033[0m ");
-	ft_putstr(msg);
-	write(1, "\n", 1);
+	printf("%ld \033[0;36m#%d\033[0m %s\n", time, philo->idx, msg);
 	if (d)
 		philo->table->end = 1;
 	sem_post(philo->table->print);
@@ -52,7 +50,6 @@ int			init_table(t_table *table, int argc, char **argv)
 	table->t_eat = data[3];
 	table->t_sleep = data[4];
 	table->n_eat = (i == 6) ? data[5] : -1;
-
 	return (0);
 }
 
@@ -99,7 +96,7 @@ void		sleeping(int msec)
 
 	start = get_time();
 	while (get_time() - start < msec)
-		usleep(1000);
+		usleep(100);
 }
 
 int			all_hungry(t_philo *philos)
@@ -128,6 +125,7 @@ void		*death(void *args)
 		time = get_time() - philo->last;
 		if (time > philo->table->t_die && !philo->table->end)
 			print_s(philo, "\033[0;31mdied\033[0m", 1);
+		usleep(100);
 	}
 	return (NULL);
 }
@@ -152,7 +150,6 @@ void		*live(void *args)
 		print_s(philo, "is sleeping", 0);
 		sleeping(philo->table->t_sleep);
 		print_s(philo, "is thinking", 0);
-
 	}
 	return (NULL);
 }
@@ -169,17 +166,13 @@ void		dinner(int num, t_philo *philos)
 	{
 		pthread_create(&worker[i], NULL, live, &philos[i]);
 		pthread_create(&checker[i], NULL, death, &philos[i]);
+		pthread_detach(checker[i]);
 		usleep(100);
 	}
 	i = -1;
 	while (!philos[0].table->end)
 		if (!all_hungry(philos))
 			philos[0].table->end = 1;
-	while (++i < num)
-	{
-		pthread_join(worker[i], NULL);
-		pthread_join(checker[i], NULL);
-	}
 }
 
 int			main(int argc, char **argv)
@@ -193,6 +186,5 @@ int			main(int argc, char **argv)
 		return (printf("Error initializing philosophers\n"));
 	printf("num: %d | die: %d | eat: %d | sleep: %d | n: %d\n", table.num, table.t_die, table.t_eat, table.t_sleep, table.n_eat);
 	dinner(table.num, philos);
-//	while (1);
 	return (destroy(&table));
 }

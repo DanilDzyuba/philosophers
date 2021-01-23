@@ -6,13 +6,13 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/10 17:32:29 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/17 18:42:50 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/23 17:21:35 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo_one.h"
 
-int			print_s(t_philo *philo, char *msg, int d, int num)
+int			print_s(t_philo *philo, char *msg, int d)
 {
 	long time;
 
@@ -23,18 +23,7 @@ int			print_s(t_philo *philo, char *msg, int d, int num)
 		return (0);
 	}
 	time = get_time() - philo->table->start;
-	ft_putnbr(time);
-	ft_putstr(" \033[0;36m#");
-	ft_putnbr(philo->idx);
-	ft_putstr("\033[0m ");
-	ft_putstr(msg);
-	if (num != -1)
-	{
-		ft_putstr("\033[0;34m #");
-		ft_putnbr(num);
-		ft_putstr("\033[0m");
-	}
-	write(1, "\n", 1);
+	printf("%ld \033[0;36m#%d\033[0m %s\n", time, philo->idx, msg);
 	if (d)
 		philo->table->end = 1;
 	pthread_mutex_unlock(&philo->table->print);
@@ -137,7 +126,8 @@ void		*death(void *args)
 			philo->is_hungry = 0;
 		time = get_time() - philo->last;
 		if (time > philo->table->t_die && !philo->table->end)
-			print_s(philo, "\033[0;31mdied\033[0m", 1, -1);
+			print_s(philo, "\033[0;31mdied\033[0m", 1);
+		usleep(100);
 	}
 	return (NULL);
 }
@@ -150,18 +140,18 @@ void		*live(void *args)
 	while (!philo->table->end)
 	{
 		pthread_mutex_lock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "has taken a fork", 0, philo->l_fork);
+		print_s(philo, "has taken a fork", 0);
 		pthread_mutex_lock(&philo->table->forks[philo->r_fork]);
-		print_s(philo, "has taken a fork", 0, philo->r_fork);
+		print_s(philo, "has taken a fork", 0);
 		philo->last = get_time();
-		print_s(philo, "is eating", 0, -1);
+		print_s(philo, "is eating", 0);
 		sleeping(philo->table->t_eat);
 		philo->n_eat++;
 		pthread_mutex_unlock(&philo->table->forks[philo->r_fork]);
 		pthread_mutex_unlock(&philo->table->forks[philo->l_fork]);
-		print_s(philo, "is sleeping", 0, -1);
+		print_s(philo, "is sleeping", 0);
 		sleeping(philo->table->t_sleep);
-		print_s(philo, "is thinking", 0, -1);
+		print_s(philo, "is thinking", 0);
 	}
 	return (NULL);
 }
@@ -178,6 +168,7 @@ void		dinner(int num, t_philo *philos)
 	{
 		pthread_create(&worker[i], NULL, live, &philos[i]);
 		pthread_create(&checker[i], NULL, death, &philos[i]);
+		pthread_detach(checker[i]);
 		usleep(100);
 	}
 	i = -1;
@@ -202,6 +193,5 @@ int			main(int argc, char **argv)
 		return (printf("Error initializing philosophers\n"));
 	printf("num: %d | die: %d | eat: %d | sleep: %d | n: %d\n", table.num, table.t_die, table.t_eat, table.t_sleep, table.n_eat);
 	dinner(table.num, philos);
-//	while (1);
 	return (destroy(&table));
 }
