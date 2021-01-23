@@ -6,7 +6,7 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/17 18:32:09 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/23 17:30:20 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/24 01:03:54 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ int			init_table(t_table *table, int argc, char **argv)
 	while (++i < argc)
 	{
 		data[i] = ft_atoi(argv[i]);
-		if (data[i] == -1)
+		if (data[i] <= 0)
 			return (1);
 	}
 	table->end = 0;
