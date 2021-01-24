@@ -6,7 +6,7 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/19 14:01:06 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/19 17:21:31 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/24 13:30:42 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,6 @@ typedef struct	s_table
 	int				n_eat;
 	sem_t			*print;
 	sem_t			*forks;
-	sem_t			*dead;
 	pid_t			*pids;
 	long			start;
 	int				end;
@@ -39,17 +38,14 @@ typedef struct	s_table
 typedef struct	s_philo
 {
 	int			idx;
-	int			is_hungry;
 	int			n_eat;
 	long		start;
 	long		last;
 	t_table		*table;
 }				t_philo;
 
-int				ft_strlen(char *s);
 int				ft_atoi(const char *str);
 long			get_time(void);
-int				ft_putnbr(long n);
-int				ft_putstr(char *s);
-
+void			*live(void *args);
+void			*death(void *args);
 #endif

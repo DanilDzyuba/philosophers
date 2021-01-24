@@ -49,4 +49,3 @@ int		ft_atoi(const char *str)
 	}
 	return (*str) ? -1 : (result * sign);
 }
-

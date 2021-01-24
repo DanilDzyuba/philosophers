@@ -6,7 +6,7 @@
 /*   By: clauren <marvin@42.fr>                     +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/01/10 17:32:51 by clauren           #+#    #+#             */
-/*   Updated: 2021/01/17 17:20:18 by clauren          ###   ########.fr       */
+/*   Updated: 2021/01/24 13:23:20 by clauren          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,10 +44,9 @@ typedef struct	s_philo
 	t_table		*table;
 }				t_philo;
 
-int				ft_strlen(char *s);
 int				ft_atoi(const char *str);
 long			get_time(void);
-int				ft_putnbr(long n);
-int				ft_putstr(char *s);
-
+int				all_hungry(t_philo *philos);
+void			*live(void *args);
+void			*death(void *args);
 #endif
